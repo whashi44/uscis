@@ -170,5 +170,5 @@ header = np.array(header)
 # Dataframe for easier manipulation
 df = pd.DataFrame(data=city_cases, columns=header)
 # save to csv file
-# df.to_csv('I485_data_2014-2019.csv')
+df.to_csv('I485_data_2014-2019.csv')
 print(df)
