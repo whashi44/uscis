@@ -1,3 +1,11 @@
+"""
+Preprocess the uscis I485 Adjustment of status data
+1. Download the csv files from the website
+2. Rename the file and omit unnecessary files
+3. Extract information from csv and save it into csv file
+Currently works from 2014 qtr 1 through 2019 qtr 2
+"""
+
 # standard library
 from os.path import basename
 import os
