@@ -290,8 +290,8 @@ def extract(data_path="data"):
     header = np.array(header)
     # Dataframe for easier manipulation
     df = pd.DataFrame(data=city_cases, columns=header)
-    # save to csv file
-    df.to_csv('I485_data_all.csv')
+    # save to csv file, without the index name
+    df.to_csv('I485_data_all.csv', index=False)
     print(df)
 
 
