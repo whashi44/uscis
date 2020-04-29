@@ -140,7 +140,7 @@ def extract(data_path="data"):
 
     # Grab header information
     with open(f"{data_path}/{files[0]}", "r") as read_file:
-        # read file as csv
+        # read file as csv, it automatically skip comma if there is quote
         csv_file = csv.reader(read_file, delimiter=",")
         header = []
 
@@ -250,6 +250,22 @@ def extract(data_path="data"):
                             # grab the state name
                             state_name = row[0].title()
                             # For special case in 2017, 1st quarter for guam, the row is shifted so we need to grab it now
+                            if (year == "2017") and (quarter == "1") and (state_name == "Guam"):
+                                # Grab current line because it has all the information
+                                row_with_state = row
+                                row_with_state[0] = state_name
+                                # check the next line, which has the city name
+                                row = next(csv_file)
+                                # removing leading and trailing white space
+                                row = list(map(str.strip, row))
+                                # create lower case
+                                row = list(map(str.lower, row))
+                                # Grab city name
+                                row_with_state[1] = row[1].title()
+                                # capitalize state abbreviation
+                                row_with_state[2] = row[2].upper()
+                                row_with_state[23] = year
+                                row_with_state[24] = quarter
 
                         # if the 1st column is empty, meaning this row is city
                         # some year has repeating the header at the middle of the line, hence 2nd if statement is counter for that (see 2018 qtr 1 Kentucky)
@@ -286,8 +302,18 @@ def extract(data_path="data"):
 
     # convert the list of list to array of array
     city_cases = np.array([np.array(x)[0:25] for x in city_cases])
+    # print(np.shape(city_cases))
     # convert the list to array
     header = np.array(header)
+
+    print("Converting empty strings, 'd' and 'D' to NaN")
+    # Convert the empty strings and d or D to NaN
+    city_cases[city_cases == ''] = np.NaN
+    city_cases[city_cases == 'd'] = np.NaN
+    city_cases[city_cases == 'D'] = np.NaN
+    # Convert the hyphen to 0
+    print("Converting '-' to 0")
+    city_cases[city_cases == '-'] = 0
 
     return city_cases, header
 
@@ -313,10 +339,20 @@ def modify(data, header):
 
     # I would like to know how each quarter is corresponds to the months
     quarter = ["1", "2", "3", "4"]
-    months = ['Oct.1 - Dec.31', 'Jan.1 - Mar.31',
-              'Apr.1 - June.30', 'Jul.1 - Sep.30']
-    periods = dict(zip(quarter, months))
-    time['Period'] = time['Quarter'].map(periods)
+    # Construct data list for beginning month and ending date
+    begin = ['10-01', '01-01', '04-01', '07-01']
+    end = ['12-31', '03-31', '06-30', '9-30']
+    # Zip and create a dictionary, key = quarter value = date
+    date_begin = dict(zip(quarter, begin))
+    date_end = dict(zip(quarter, end))
+    # Assign those by creating new column
+    time['Start_date'] = time['Quarter'].map(date_begin)
+    time['End_date'] = time['Quarter'].map(date_end)
+    # Concatinate year at the end of the date column that we created
+    time['Start_date'] = time.apply(
+        lambda row: f"{row['Start_date']}-{row['Year']}", axis=1)
+    time['End_date'] = time.apply(
+        lambda row: f"{row['End_date']}-{row['Year']}", axis=1)
 
     # Store all data frame into list to loop through
     all_df = [family, employment, humanitarian, other, total]
@@ -334,8 +370,10 @@ def modify(data, header):
         all_df[i] = df
     df_final = pd.concat(all_df)
 
+    save_file = 'I485_data_all.csv'
     # save to csv file, without the index name
-    df_final.to_csv('I485_data_all.csv', index=False)
+    df_final.to_csv(save_file, index=False)
+    print(f"saved to {save_file}")
     # print(df_final)
 
 
