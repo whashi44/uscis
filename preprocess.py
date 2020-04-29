@@ -25,9 +25,10 @@ import pandas as pd
 def main():
     data_path = "data"
     raw_path = "raw"
-    download(raw_path)
-    rename(data_path, raw_path)
-    extract(data_path)
+    # download(raw_path)
+    # rename(data_path, raw_path)
+    data, header = extract(data_path)
+    modify(data, header)
 
 # -----------------------------------------------------------------------------------------------------
 
@@ -124,9 +125,7 @@ def extract(data_path="data"):
     """Read csv file from data folder and perform following:
         1. Extract header information from the first file, assuming all other file have same/similar header information 
         2. Extract state and city application information 
-        3. Convert them to numpy array 
-        4. store them as pandas data frame 
-        5. Save to csv file
+        3. Convert them to numpy array and return
     """
     # # Change directory to data folder
     # try:
@@ -242,7 +241,7 @@ def extract(data_path="data"):
                     total_case_numbers = row
 
                 # For looping through states
-                # if the first column(state) is alabama, or alaska for before 2017_qtr3
+                # if the first column(state) is alabama, or alaska (before 2017_qtr3)
                 if row[0] == "alabama" or row[0] == "alaska":
                     # Loop until final city, vermont
                     while row[1] != "vermont":
@@ -250,6 +249,7 @@ def extract(data_path="data"):
                         if (row[0] != ""):
                             # grab the state name
                             state_name = row[0].title()
+                            # For special case in 2017, 1st quarter for guam, the row is shifted so we need to grab it now
 
                         # if the 1st column is empty, meaning this row is city
                         # some year has repeating the header at the middle of the line, hence 2nd if statement is counter for that (see 2018 qtr 1 Kentucky)
@@ -288,11 +288,55 @@ def extract(data_path="data"):
     city_cases = np.array([np.array(x)[0:25] for x in city_cases])
     # convert the list to array
     header = np.array(header)
+
+    return city_cases, header
+
+
+def modify(data, header):
+    """ Take the data and convert to pandas data frame 
+    """
     # Dataframe for easier manipulation
-    df = pd.DataFrame(data=city_cases, columns=header)
+    df_original = pd.DataFrame(data=data, columns=header)
+    # We don't need abbreviation for cities, so drop those
+    df_original = df_original.drop(columns='Abbreviation')
+    # Currently, there are excess columns, so simplify by adding category row
+    # So there will be only columns for State,city,received,approved,denied,pending,category
+    # First, let's slice the data frame into location(state & city), family, employment, humanitarian, other, total, and time (year & quarter)
+    # Create a copy to avoid settingwithcopywarning
+    location = df_original.iloc[:, 0:2].copy()
+    family = df_original.iloc[:, 2:6].copy()
+    employment = df_original.iloc[:, 6:10].copy()
+    humanitarian = df_original.iloc[:, 10:14].copy()
+    other = df_original.iloc[:, 14:18].copy()
+    total = df_original.iloc[:, 18:22].copy()
+    time = df_original.iloc[:, 22:24].copy()
+
+    # I would like to know how each quarter is corresponds to the months
+    quarter = ["1", "2", "3", "4"]
+    months = ['Oct.1 - Dec.31', 'Jan.1 - Mar.31',
+              'Apr.1 - June.30', 'Jul.1 - Sep.30']
+    periods = dict(zip(quarter, months))
+    time['Period'] = time['Quarter'].map(periods)
+
+    # Store all data frame into list to loop through
+    all_df = [family, employment, humanitarian, other, total]
+    # Let's rename the columns name, and then put "category" column with corresponding names
+    category_list = ['Family', 'Employment', 'Humanitarian', 'Other', 'Total']
+    # I also want to change the name of the columns
+    new_names = ['Received', 'Approved', 'Denied', 'Pending']
+    for i, df in enumerate(all_df):
+        # Grab column names
+        col_names = list(df.columns.values)
+        name_dict = dict(zip(col_names, new_names))
+        df = df.rename(columns=name_dict)
+        df['Category'] = category_list[i]
+        df = pd.concat([location, df, time], axis=1, sort=False)
+        all_df[i] = df
+    df_final = pd.concat(all_df)
+
     # save to csv file, without the index name
-    df.to_csv('I485_data_all.csv', index=False)
-    print(df)
+    df_final.to_csv('I485_data_all.csv', index=False)
+    # print(df_final)
 
 
 if __name__ == "__main__":
