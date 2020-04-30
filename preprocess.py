@@ -20,6 +20,7 @@ from bs4 import BeautifulSoup
 from natsort import natsorted
 import numpy as np
 import pandas as pd
+from fiscalyear import FiscalQuarter
 
 
 def main():
@@ -337,22 +338,12 @@ def modify(data, header):
     total = df_original.iloc[:, 18:22].copy()
     time = df_original.iloc[:, 22:24].copy()
 
-    # I would like to know how each quarter is corresponds to the months
-    quarter = ["1", "2", "3", "4"]
-    # Construct data list for beginning month and ending date
-    begin = ['10-01', '01-01', '04-01', '07-01']
-    end = ['12-31', '03-31', '06-30', '9-30']
-    # Zip and create a dictionary, key = quarter value = date
-    date_begin = dict(zip(quarter, begin))
-    date_end = dict(zip(quarter, end))
-    # Assign those by creating new column
-    time['Start_date'] = time['Quarter'].map(date_begin)
-    time['End_date'] = time['Quarter'].map(date_end)
-    # Concatinate year at the end of the date column that we created
+    # Using fiscal year package, we can identify the date and year
+    # start attribute indicate the start of the fiscal quarter, date() is simply to return only dates, not time
     time['Start_date'] = time.apply(
-        lambda row: f"{row['Start_date']}-{row['Year']}", axis=1)
+        lambda row: FiscalQuarter(row.Year, row.Quarter).start.date(), axis=1)
     time['End_date'] = time.apply(
-        lambda row: f"{row['End_date']}-{row['Year']}", axis=1)
+        lambda row: FiscalQuarter(row.Year, row.Quarter).end.date(), axis=1)
 
     # Store all data frame into list to loop through
     all_df = [family, employment, humanitarian, other, total]
@@ -363,12 +354,21 @@ def modify(data, header):
     for i, df in enumerate(all_df):
         # Grab column names
         col_names = list(df.columns.values)
+        # Create dictionary key = col names, value = new_names
         name_dict = dict(zip(col_names, new_names))
+        # Rename the columns i.e. Family:application_received -> Received
         df = df.rename(columns=name_dict)
+        # Keep the category i.e. Family, employment
         df['Category'] = category_list[i]
+        # concatinate location(state,city) this data frame, and time
         df = pd.concat([location, df, time], axis=1, sort=False)
+
         all_df[i] = df
     df_final = pd.concat(all_df)
+
+    # There is annoying comma in the number, so remove those
+    for col in new_names:
+        df_final[col] = df_final[col].str.replace(',', '')
 
     save_file = 'I485_data_all.csv'
     # save to csv file, without the index name
