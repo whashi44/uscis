@@ -72,7 +72,7 @@ def rename(data_path="data", raw_path="raw"):
     """
     Rename files because the original file name had inconsistency
     Remove other files that is not useful for analysis (i.e. one with inconsistent format, especially before 2014)
-    Remove fy 2013 csv because the csv format was completely different. 
+    Remove fy 2013 csv because the csv format was completely different.
     """
     # data_path = "data"
     # raw_path = "raw"
@@ -124,8 +124,8 @@ def rename(data_path="data", raw_path="raw"):
 
 def extract(data_path="data"):
     """Read csv file from data folder and perform following:
-        1. Extract header information from the first file, assuming all other file have same/similar header information 
-        2. Extract state and city application information 
+        1. Extract header information from the first file, assuming all other file have same/similar header information
+        2. Extract state and city application information
         3. Convert them to numpy array and return
     """
     # # Change directory to data folder
@@ -320,7 +320,7 @@ def extract(data_path="data"):
 
 
 def modify(data, header):
-    """ Take the data and convert to pandas data frame 
+    """ Take the data and convert to pandas data frame
     """
     # Dataframe for easier manipulation
     df_original = pd.DataFrame(data=data, columns=header)
